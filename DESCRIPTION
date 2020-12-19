@@ -1,0 +1,17 @@
+Package: StatComp20098
+Type: Package
+Title: Binary classification based on Gaussian mixture model
+Version: 1.0
+Date: 2020-12-20
+Author: Yanyan Yue
+Maintainer: Yanyan Yue <yueyy223@163.com>
+Description: Using Gaussian mixture model to implement a binary classification task.
+License: GPL (>= 2)
+Imports: Rcpp (>= 1.0.5), microbenchmark, MASS, bootstrap, boot, DAAG, RANN, energy, Ball
+LinkingTo: Rcpp
+RoxygenNote: 7.1.1
+Encoding: UTF-8
+Suggests: knitr, rmarkdown
+VignetteBuilder: knitr
+URL: http://github.com/yyy223/StatComp20098
+BugReports: http://github.com/yyy223/StatComp20098/issues

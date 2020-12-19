@@ -1,0 +1,142 @@
+---
+title: "Introduction to StatComp20098"
+author: "Yanyan Yue"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to test}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## Overview
+
+__StatComp20098__ is a simple R package developed to implement binary classification based on Gaussian mixture model (implemented through the R package _StatComp20098_) for the 'Statistical Computing' course. Three functions are considered, namely, _getInitGMM_ (initialize GMM with k-means) , _EM_ (using EM algorithm to estimate the parameters of GMM) and _getAcc_(computing accuracy of predicting). 
+
+## Using Gaussian mixture model to solve binary classification problem
+
+The source R code for _getInitGMM_ is as follows:
+```{r,eval=FALSE}
+function(dat, k) {
+  km <- kmeans(dat, k)
+  weight <- km$size / length(dat)
+  mu <- km$centers
+  cluster <- km$cluster
+  sigma <- numeric()
+  for (i in 1:k) {
+    index = which(cluster == i)
+    var <- var(dat[index])
+    sigma[i] <- sqrt(var)
+  }
+  res <- list(weight, mu, sigma)
+  return(res)
+}
+```
+
+
+The source R code for _EM_ is as follows:
+```{r,eval=FALSE}
+function(dat, k, weight, mu, sigma) {
+  N <- length(dat)
+  prob <- matrix(rep(0,N*k),N,k)
+  gamma <- matrix(rep(0,N*k),N,k)
+  iter = 0
+  while(iter <= 200) {
+    iter = iter + 1
+    #E-step
+    for (j in 1:k) {
+      prob[,j] <- sapply(dat, dnorm, mu[j], sigma[j])
+    }
+    for (i in 1:N) {
+      gamma[i,] <- mapply(function(x,y) x*y , weight, prob[i,])
+    }
+    gamma <- gamma / rowSums(gamma)
+    
+    old_weight <- weight
+    old_mu <- mu
+    old_sigma <- sigma
+    #M-step
+    for (j in 1:k) {
+      p1 <- sum(gamma[,j]*dat)
+      p2 <- sum(gamma[,j])
+      weight[j] <- p2 / N
+      mu[j] <- p1 / p2
+      sigma[j] <- sqrt(sum(gamma[,j]*(dat-mu[j])^2) / p2)
+    }
+    epsilon <- 1e-4
+    if (sum(abs(weight - old_weight)) < epsilon & 
+        sum(abs(mu - old_mu)) < epsilon & 
+        sum(abs(sigma - old_sigma)) < epsilon) {
+      break
+    }
+  }
+  return(list(weight,mu,sigma))
+}
+```
+
+
+The source R code for _EM_ is as follows:
+```{r echo=FALSE}
+function(test_data, k, weight, mu, sigma) {
+  n <- length(test_data[,1])
+  predict <- matrix(rep(0,n*3),n,3)
+  for (k in 1:2) {
+    temp = matrix(rep(0,n*2), nrow = n, ncol = 2)
+    for (j in 1:2) {
+      temp[,j] = sapply(test_data[,2], dnorm, mu[k,j], sigma[k,j])
+    }
+    for (i in 1:n) {
+      temp[i,] = mapply(function(x,y) x*y, weight[k,], temp[i,])
+    }
+    predict[,k] = rowSums(temp[,1:2])
+  }
+  predict = as.data.frame(predict)
+  for (i in 1:n) {
+    if (predict[i,1] >= predict[i,2]) {
+      predict[i,3] = 'A'
+    }else{
+      predict[i,3] = 'B'
+    }
+  }
+  acc = sum(predict[,3] == test_data[,1]) / n
+  return(acc)
+}
+```
+
+
+In order to test the performance of GMM, one generates training set and test set.The R code for modeling GMM is as follows.
+
+```{r,eval=TRUE}
+library(StatComp20098)
+#generates training set and test set
+set.seed(0117)
+x <- c(rnorm(1400,2,1),rnorm(600,-3,3),rnorm(400,-2,2),rnorm(600,2,5))
+y <- c(rnorm(500,2,1),rnorm(200,-3,3),rnorm(300,-2,2),rnorm(200,2,5))
+label1 <- c(rep('A',2000),rep('B',1000))
+label2 <- c(rep('A',700),rep('B',500))
+train <- data.frame(label1,x,stringsAsFactors = F)
+test <- data.frame(label2,y,stringsAsFactors = F)
+A_train <- train[which(train[1]=='A'), 2]
+B_train <- train[which(train[1]=='B'), 2]
+
+#Initializing GMM with k-means
+init_A <- getInitGMM(A_train, 2)
+init_B <- getInitGMM(B_train, 2)
+
+#Using EM algorithm to estimate the parameters of GMM
+A_param <- EM(A_train, 2, init_A)
+B_param <- EM(B_train, 2, init_B)
+
+#Calculate the prediction accuracy of GMM
+weight <- t(matrix(c(A_param[[1]],B_param[[1]]),2,2))
+mu <- t(matrix(c(A_param[[2]],B_param[[2]]),2,2))
+sigma <- t(matrix(c(A_param[[3]],B_param[[3]]),2,2))
+acc <- getAcc(test,2,weight,mu,sigma)
+acc
+
+```
+
+The above result shows that the prediction accuracy of GMM model is 75%.
+
+
+
